@@ -1,0 +1,356 @@
+#!/bin/bash
+#
+conf_directory=/usr/local/nginx/conf/vhost
+bak_directory=/root/nginx_backup
+timestamp=$(date +%Y%m%d_%H%M%S)
+type_opera=""
+server_name=""
+directory=""
+flag=""
+IFS=','
+
+function Nginx_Backup {
+    if [ ! ${server_name} -o ! ${host_array} ];then
+        echo "No parameters specified server_name or host"
+        exit 1
+    fi
+    if [ ! -d $bak_directory ];then
+        mkdir -p $bak_directory
+    fi
+    if [ $(ls ${conf_directory} |grep -i "^${server_name}.conf$" |wc -l) -ge 1 ];then
+        cp -a $conf_directory/${server_name}.conf $bak_directory/${server_name}.conf_$timestamp
+    fi
+}
+
+function Nginx_Reload {
+    /usr/local/nginx/sbin/nginx -t &> /dev/null
+    if [ $? -eq 0 ];then 
+        /usr/local/nginx/sbin/nginx -s reload
+    else
+        /usr/local/nginx/sbin/nginx -t
+        if [ -f $bak_directory/${server_name}.conf_$timestamp ];then
+            mv $bak_directory/${server_name}.conf_$timestamp $conf_directory/${server_name}.conf
+        else
+            rm -f $conf_directory/${server_name}.conf
+        fi
+    fi
+}
+
+function Add {
+    Nginx_Backup
+
+    if [ ! $(echo ${host_array[0]:0:1} |grep '[[:digit:]]') ];then
+        host_array[0]=${host_array[0]:1}
+    fi
+
+    if [ $(ls ${conf_directory} |grep -i "^${server_name}.conf$" |wc -l) -ge 1 ];then
+        server_name=$(ls ${conf_directory} |grep -i "^${server_name}.conf$" |sed 's/.conf//g')
+        if [ ${directory} ];then
+            if [ $(grep -i "location.*\<${directory}>b" ${conf_directory}/${server_name}.conf |wc -l) -ge 1 ];then
+                echo "server_name ${server_name} & location ${directory} is already exist"
+                exit 1
+            fi
+            if [ $(nc -w 1 ${host_array[0]} 22 |wc -l) -ge 1 ];then
+                flag=/
+            fi
+            end_line=$(sed -n '/location.*{/,/ *}$/=' ${conf_directory}/${server_name}.conf |tail -n 1)
+sed -i "${end_line}a\\
+       location ^~ /${directory}/ {\n\
+           proxy_pass http://${server_name}.${directory}${flag};\n\
+           proxy_redirect off;\n\
+           proxy_set_header Host \$host;\n\
+           proxy_set_header X-Real_IP \$remote_addr;\n\
+           proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;\n\
+           access_log logs/${server_name}.${directory}.log my;\n\
+       }" \
+${conf_directory}/${server_name}.conf
+            echo "upstream ${server_name}.${directory} {" >> ${conf_directory}/${server_name}.conf
+            for i in ${host_array[@]}
+            do
+                echo "       server ${i};" >> ${conf_directory}/${server_name}.conf
+            done
+            echo "}" >> ${conf_directory}/${server_name}.conf
+        else
+            echo "server_name ${server_name} is already exist"
+            exit 1
+        fi
+    else
+       domain=$(echo ${server_name} |awk -F'.' '{print $(NF-1)"."$NF}')
+       if [ ${domain} == "yihu.com" -o ${domain} == "yihu.cn" ];then
+cat > ${conf_directory}/${server_name}.conf << EOF
+server {
+       listen 80;
+       listen 443 ssl;
+       server_name ${server_name};
+       ssl_certificate /usr/local/nginx/conf/ssl/${domain}/${domain}.crt;
+       ssl_certificate_key /usr/local/nginx/conf/ssl/${domain}/${domain}.key;
+       ssl_session_timeout 10m;
+       ssl_protocols TLSv1 TLSv1.1 TLSv1.2;
+       ssl_ciphers ECDHE-RSA-AES256-GCM-SHA384:ECDHE-RSA-AES128-GCM-SHA256:DHE-RSA-AES256-GCM-SHA384:DHE-RSA-AES128-GCM-SHA256:ECDHE-RSA-AES256-SHA384:ECDHE-RSA-AES128-SHA256:ECDHE-RSA-AES256-SHA:ECDHE-RSA-AES128-SHA:DHE-RSA-AES256-SHA256:DHE-RSA-AES128-SHA256:DHE-RSA-AES256-SHA:DHE-RSA-AES128-SHA:ECDHE-RSA-DES-CBC3-SHA:EDH-RSA-DES-CBC3-SHA:AES256-GCM-SHA384:AES128-GCM-SHA256:AES256-SHA256:AES128-SHA256:AES256-SHA:AES128-SHA:DES-CBC3-SHA:HIGH:!aNULL:!eNULL:!EXPORT:!DES:!MD5:!PSK:!RC4;
+       ssl_prefer_server_ciphers on;
+       location / {
+           proxy_pass http://${server_name};
+           proxy_redirect off;
+           proxy_set_header Host \$host;
+           proxy_set_header X-Real_IP \$remote_addr;
+           proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
+           access_log logs/${server_name}.log my;
+       }
+}
+upstream ${server_name} {
+EOF
+            for i in ${host_array[@]}
+            do
+                echo "       server ${i};" >> ${conf_directory}/${server_name}.conf
+            done
+            echo "}" >> ${conf_directory}/${server_name}.conf
+        else
+cat > ${conf_directory}/${server_name}.conf << EOF
+server {
+       listen 80;
+       server_name ${server_name};
+       location / {
+           proxy_pass http://${server_name};
+           proxy_redirect off;
+           proxy_set_header Host \$host;
+           proxy_set_header X-Real_IP \$remote_addr;
+           proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
+           access_log logs/${server_name}.log my;
+       }
+}
+upstream ${server_name} {
+EOF
+            for i in ${host_array[@]}
+            do
+                echo "       server ${i};" >> ${conf_directory}/${server_name}.conf
+            done
+            echo "}" >> ${conf_directory}/${server_name}.conf
+        fi
+    fi
+
+    cat ${conf_directory}/${server_name}.conf
+    Nginx_Reload
+}
+
+function Upstream_Add {
+    if [ $(ls ${conf_directory} |grep -i "^${server_name}.conf$" |wc -l) -ge 1 ];then
+        server_name=$(ls ${conf_directory} |grep -i "^${server_name}.conf$" |sed 's/.conf//g')
+        if [ ${directory} ];then
+            start_line=$(grep -in "upstream \<${server_name}.${directory}\> {" ${conf_directory}/${server_name}.conf |awk -F: '{print $1}')
+        else
+            start_line=$(grep -in "upstream \<${server_name}\> {" ${conf_directory}/${server_name}.conf |awk -F: '{print $1}')
+        fi
+        if [ ${start_line} == '' ];then
+            echo "location ${directory} is not exist"
+            exit 1
+        fi
+        end_line=$(sed -n "${start_line},/^}$/=" ${conf_directory}/${server_name}.conf |tail -n 1)
+        for i in ${host_array[@]}
+        do
+            sed -i "${end_line}i\       server ${i};" ${conf_directory}/${server_name}.conf
+            end_line=$((end_line+1))
+        done
+    else
+        echo "server_name ${server_name} is not exist"
+        exit 1
+    fi
+
+    cat ${conf_directory}/${server_name}.conf
+    Nginx_Reload
+}
+
+function Upstream_Delete {
+    if [ $(ls ${conf_directory} |grep -i "^${server_name}.conf$" |wc -l) -ge 1 ];then
+        server_name=$(ls ${conf_directory} |grep -i "^${server_name}.conf$" |sed 's/.conf//g')
+        if [ ${directory} ];then
+            start_line=$(grep -in "upstream \<${server_name}.${directory}\> {" ${conf_directory}/${server_name}.conf |awk -F: '{print $1}')
+        else
+            start_line=$(grep -in "upstream \<${server_name}\> {" ${conf_directory}/${server_name}.conf |awk -F: '{print $1}')
+        fi
+        if [ ${start_line} == '' ];then
+            echo "location ${directory} is not exist"
+            exit 1
+        fi
+        for i in ${host_array[@]}
+        do
+            end_line=$(sed -n "${start_line},/^}$/=" ${conf_directory}/${server_name}.conf |tail -n 1)
+            sed -i "${start_line},${end_line}{/server ${i};/d}" ${conf_directory}/${server_name}.conf
+        done
+    else
+        echo "server_name ${server_name} is not exist"
+        exit 1
+    fi
+
+    cat ${conf_directory}/${server_name}.conf
+    Nginx_Reload
+}
+
+function Upstream_Replace {
+    if [ $(ls ${conf_directory} |grep -i "^${server_name}.conf$" |wc -l) -ge 1 ];then
+        server_name=$(ls ${conf_directory} |grep -i "^${server_name}.conf$" |sed 's/.conf//g')
+        if [ ${directory} ];then
+            start_line=$(grep -in "upstream \<${server_name}.${directory}\> {" ${conf_directory}/${server_name}.conf |awk -F: '{print $1}')
+        else
+            start_line=$(grep -in "upstream \<${server_name}\> {" ${conf_directory}/${server_name}.conf |awk -F: '{print $1}')
+        fi
+        if [ ${start_line} == '' ];then
+            echo "location ${directory} is not exist"
+            exit 1
+        fi
+        end_line=$(sed -n "${start_line},/^}$/=" ${conf_directory}/${server_name}.conf |tail -n 1)
+        sed -i "${start_line},${end_line}{/server.*;/d}" ${conf_directory}/${server_name}.conf
+        end_line=$(sed -n "${start_line},/^}$/=" ${conf_directory}/${server_name}.conf |tail -n 1)
+
+        for i in ${host_array[@]}
+        do
+            sed -i "${end_line}i\       server ${i};" ${conf_directory}/${server_name}.conf
+            end_line=$((end_line+1))
+        done
+    else
+        echo "server_name ${server_name} is not exist"
+        exit 1
+    fi
+
+    cat ${conf_directory}/${server_name}.conf
+    Nginx_Reload
+}
+
+function Modify {
+    Nginx_Backup
+
+    flag=${host_array[0]:0:1}
+    host_array[0]=${host_array[0]:1}
+
+    case ${flag} in
+        +)
+            Upstream_Add
+            ;;
+        -)
+            Upstream_Delete
+            ;;
+        =)
+            Upstream_Replace
+            ;;
+        *)
+            echo "Error operation"
+            exit 1
+            ;;
+    esac        
+}
+
+function Delete {
+    Nginx_Backup
+
+    if [ $(ls ${conf_directory} |grep -i "^${server_name}.conf$" |wc -l) -ge 1 ];then
+        server_name=$(ls ${conf_directory} |grep -i "^${server_name}.conf$" |sed 's/.conf//g')
+        if [ ${directory} ];then
+            start_line=$(grep -in "location ^~ /\<${directory}\>/ {" ${conf_directory}/${server_name}.conf |awk -F: '{print $1}')
+            if [ ${start_line} == '' ];then
+                echo "location ${directory} is not exist"
+                exit 1
+            fi
+            end_line=$(sed -n "${start_line},/^       }$/=" ${conf_directory}/${server_name}.conf |tail -n 1)
+            sed -i "${start_line},${end_line}d" ${conf_directory}/${server_name}.conf
+            start_line=$(grep -in "upstream \<${server_name}.${directory}\> {" ${conf_directory}/${server_name}.conf |awk -F: '{print $1}')
+            if [ ${start_line} == '' ];then
+                echo "upstream ${server_name}.${directory} is not exist"
+                exit 1
+            fi
+            end_line=$(sed -n "${start_line},/^}$/=" ${conf_directory}/${server_name}.conf |tail -n 1)
+            sed -i "${start_line},${end_line}d" ${conf_directory}/${server_name}.conf
+            cat ${conf_directory}/${server_name}.conf
+        else
+            rm -f ${conf_directory}/${server_name}.conf
+        fi
+    else
+        echo "server_name ${server_name} is not exist"
+        exit 1
+    fi
+
+    Nginx_Reload
+}
+
+function Search {
+    if [ $(ls ${conf_directory} |grep -i "^${server_name}.conf$" |wc -l) -ge 1 ];then
+        server_name=$(ls ${conf_directory} |grep -i "^${server_name}.conf$" |sed 's/.conf//g')
+        if [ ${directory} ];then
+            start_line=$(grep -in "upstream \<${server_name}.${directory}\> {" ${conf_directory}/${server_name}.conf |awk -F: '{print $1}')
+            if [ ${start_line} == '' ];then
+                echo "location ${directory} is not exist"
+                exit 1
+            fi
+            end_line=$(sed -n "${start_line},/^}$/=" ${conf_directory}/${server_name}.conf |tail -n 1)
+            echo "${server_name}/${directory} =>"
+            sed -n "$((${start_line}+1)),$((${end_line}-1))p" ${conf_directory}/${server_name}.conf
+        else
+            directory_array=($(sed -n "s/upstream \(${server_name}.*\) {/\1/p" ${conf_directory}/${server_name}.conf |sed -e "s/${server_name}//g" -e "s/\./\//g" -e "s/^/${server_name}/g" |tr "\n" ","))
+            for i in ${directory_array[@]}
+            do
+                echo "${i} =>"
+                start_line=$(sed -n "/upstream $(echo ${i} |sed "s/\//./g") {/=" ${conf_directory}/${server_name}.conf)
+                end_line=$(sed -n "${start_line},/^}$/=" ${conf_directory}/${server_name}.conf |tail -n 1)
+                sed -n "$((${start_line}+1)),$((${end_line}-1))p" ${conf_directory}/${server_name}.conf
+            done
+        fi
+    else
+        echo "server_name ${server_name} is not exist"
+        exit 1
+    fi
+}
+
+function Help {
+    echo "Usage: $(basename ${0}) [-t type] [-s server_name] [-h host] [-d directory]"
+    echo ""
+    echo "Options:"
+    echo "  -t TYPE         : Operation Type"
+    echo "     add|a        : Add Server or location"
+    echo "     modify|m     : Modify upstream"
+    echo "     search|s     : Search upstream for Server or location"
+    echo "     delete|d     : Delete Server or location"
+    echo ""
+    echo "  -s SERVER_NAME  : FQDN Domain"
+    echo "  -h IP:PORT      : IP1:PORT1,IP2:PORT2,..."
+    echo "  -d DIRCTORY     : location name"
+    exit
+}
+
+# 脚本参数: -t type -s server_name -h ip:port -d directory
+while getopts t:s:h:d: option
+do 
+    case $option in
+        t)
+            type_opera=$OPTARG
+            ;;
+        s)
+            server_name=$(echo ${OPTARG} |tr '[A-Z]' '[a-z]')
+            ;;
+        h)
+            host_array=($OPTARG)
+            ;;
+        d)
+            directory=$OPTARG
+            ;;
+        \?)
+            Help
+            exit
+            ;; 
+    esac
+done
+
+case $type_opera in
+    add|a)
+        Add
+        ;;
+    modify|m)
+        Modify
+        ;;
+    delete|d)
+        Delete
+        ;;
+    search|s)
+        Search
+        ;;        
+    *)
+        Help
+        ;;
+esac
