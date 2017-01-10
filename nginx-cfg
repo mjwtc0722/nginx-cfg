@@ -8,7 +8,6 @@ timestamp=$(date +%Y%m%d_%H%M%S)
 type_opera=""
 server_name=""
 directory=""
-flag=""
 IFS=','
 
 function Nginx_Backup {
@@ -52,13 +51,10 @@ function Add {
                 echo "server_name ${server_name} & location ${directory} is already exist"
                 exit 1
             fi
-            if [ $(nc -w 1 ${host_array[0]} 22 |wc -l) -ge 1 ];then
-                flag=/
-            fi
             end_line=$(sed -n '/location.*{/,/ *}$/=' ${conf_directory}/${server_name}.conf |tail -n 1)
 sed -i "${end_line}a\\
        location ^~ /${directory}/ {\n\
-           proxy_pass http://${server_name}.${directory}${flag};\n\
+           proxy_pass http://${server_name}.${directory};\n\
            proxy_redirect off;\n\
            proxy_set_header Host \$host;\n\
            proxy_set_header X-Real_IP \$remote_addr;\n\
