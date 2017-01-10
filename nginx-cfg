@@ -270,7 +270,7 @@ function Search {
 }
 
 function Help {
-    echo "Usage: $(basename ${0}) [-t type] [-s server_name] [-h host] [-d directory]"
+    echo "Usage: $(basename ${0}) [-t type] [-s server_name] [-h host] [-d location]"
     echo ""
     echo "Options:"
     echo "  -t TYPE         : Operation Type"
@@ -281,7 +281,7 @@ function Help {
     echo ""
     echo "  -s SERVER_NAME  : FQDN Domain"
     echo "  -h IP:PORT      : IP1:PORT1,IP2:PORT2,..."
-    echo "  -d DIRCTORY     : location name"
+    echo "  -d LOCATION     : location name"
     exit
 }
 
