@@ -83,7 +83,7 @@ bak_directory=/root/nginx_backup             #Nginx备份文件路径
 	nginx-cfg -t add -s www.example.com -h “10.0.0.2:8080,10.0.0.3:8080”
 
   3、添加一个目录映射，域名为www.example.com，目录为directory，映射到主机10.0.0.4:80和10.0.0.5:8080
-    	nginx-cfg -t add -s www.example.com -d directory -h “10.0.0.4:80,10.0.0.5:8080”
+        nginx-cfg -t add -s www.example.com -d directory -h “10.0.0.4:80,10.0.0.5:8080”
 
   4、修改一个域名的映射，现有www.example.com映射至10.0.0.1:80，现在要加一台负载10.0.0.2:80
 	nginx-cfg -t modify -s www.example.com -h “+10.0.0.2:80”
