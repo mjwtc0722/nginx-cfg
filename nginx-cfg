@@ -59,7 +59,7 @@ sed -i "${end_line}a\\
            proxy_set_header Host \$host;\n\
            proxy_set_header X-Real_IP \$remote_addr;\n\
            proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;\n\
-           access_log logs/${server_name}.${directory}.log my;\n\
+           access_log logs/${server_name}.${directory}.log main;\n\
        }" \
 ${conf_directory}/${server_name}.conf
             echo "upstream ${server_name}.${directory} {" >> ${conf_directory}/${server_name}.conf
@@ -83,7 +83,7 @@ server {
            proxy_set_header Host \$host;
            proxy_set_header X-Real_IP \$remote_addr;
            proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
-           access_log logs/${server_name}.log my;
+           access_log logs/${server_name}.log main;
        }
 }
 upstream ${server_name} {
