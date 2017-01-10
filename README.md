@@ -69,7 +69,7 @@ bak_directory=/root/nginx_backup             #Nginx备份文件路径
 		   add|a    添加域名或目录映射（默认模式）
 		   modify|m 修改域名的upstream映射配置
 		   delete|d 删除域名或目录映射
-		   search|s   查看指定域名或目录的映射
+		   search|s 查看指定域名或目录的映射
 	-s [server_name] :配置的域名，例如:www.yihu.com
 	-h [ip:port] :映射的主机地址及端口，多条记录以‘,’隔开,例如:’10.0.0.1:80,10.0.0.2:80’
 	-d [directory] :location目录
@@ -91,8 +91,8 @@ bak_directory=/root/nginx_backup             #Nginx备份文件路径
   5、修改一个域名的映射，现有www.example.com映射至10.0.0.1:80和10.0.0.2:80，现在要删一台负载10.0.0.1:80
 	nginx-cfg -t modify -s www.example.com -h “-10.0.0.1:80”
 
-  6、修改一个域名的映射，现有www.example.com,目录为directory,映射至10.0.0.2:80，现在要替换映射为10.0.0.3:80
-	nginx-cfg -t modify -s www.example.com -d directory -h “=10.0.0.3:80”
+  6、修改一个域名的映射，现有www.example.com,目录为directory,映射至10.0.0.2:80，现在要替换映射为10.0.0.3:80和10.0.0.4:80
+	nginx-cfg -t modify -s www.example.com -d directory -h “=10.0.0.3:80,10.0.0.4:80”
 
   7、删除域名www.example.com下所有映射
 	nginx-cfg -t delete -s www.example.com
