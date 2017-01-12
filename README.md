@@ -10,7 +10,7 @@ server {
            proxy_pass http://www.example.com;
            proxy_redirect off;
            proxy_set_header Host $host;
-           proxy_set_header X-Real_IP $remote_addr;
+           proxy_set_header X-Real-IP $remote_addr;
            proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
            access_log logs/www.example.com main;
        }
@@ -28,7 +28,7 @@ server {
            proxy_pass http://www.example.com;
            proxy_redirect off;
            proxy_set_header Host $host;
-           proxy_set_header X-Real_IP $remote_addr;
+           proxy_set_header X-Real-IP $remote_addr;
            proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
            access_log logs/www.example.com main;
        }
@@ -36,7 +36,7 @@ server {
            proxy_pass http://www.example.com.directory;
            proxy_redirect off;
            proxy_set_header Host $host;
-           proxy_set_header X-Real_IP $remote_addr;
+           proxy_set_header X-Real-IP $remote_addr;
            proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
            access_log logs/www.example.com.directory main;
        }
