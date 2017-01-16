@@ -107,7 +107,7 @@ function Upstream_Add {
         else
             start_line=$(grep -in "upstream \<${server_name}\> {" ${conf_directory}/${server_name}.conf |awk -F: '{print $1}')
         fi
-        if [ ${start_line} == '' ];then
+        if [ -n ${start_line} ];then
             echo "location ${directory} is not exist"
             exit 1
         fi
@@ -134,7 +134,7 @@ function Upstream_Delete {
         else
             start_line=$(grep -in "upstream \<${server_name}\> {" ${conf_directory}/${server_name}.conf |awk -F: '{print $1}')
         fi
-        if [ ${start_line} == '' ];then
+        if [ -n ${start_line} ];then
             echo "location ${directory} is not exist"
             exit 1
         fi
@@ -160,7 +160,7 @@ function Upstream_Replace {
         else
             start_line=$(grep -in "upstream \<${server_name}\> {" ${conf_directory}/${server_name}.conf |awk -F: '{print $1}')
         fi
-        if [ ${start_line} == '' ];then
+        if [ -n ${start_line} ];then
             echo "location ${directory} is not exist"
             exit 1
         fi
@@ -212,14 +212,14 @@ function Delete {
         server_name=$(ls ${conf_directory} |grep -i "^${server_name}.conf$" |sed 's/.conf//g')
         if [ ${directory} ];then
             start_line=$(grep -in "location ^~ /\<${directory}\>/ {" ${conf_directory}/${server_name}.conf |awk -F: '{print $1}')
-            if [ ${start_line} == '' ];then
+            if [ -n ${start_line} ];then
                 echo "location ${directory} is not exist"
                 exit 1
             fi
             end_line=$(sed -n "${start_line},/^       }$/=" ${conf_directory}/${server_name}.conf |tail -n 1)
             sed -i "${start_line},${end_line}d" ${conf_directory}/${server_name}.conf
             start_line=$(grep -in "upstream \<${server_name}.${directory}\> {" ${conf_directory}/${server_name}.conf |awk -F: '{print $1}')
-            if [ ${start_line} == '' ];then
+            if [ -n ${start_line} ];then
                 echo "upstream ${server_name}.${directory} is not exist"
                 exit 1
             fi
@@ -242,7 +242,7 @@ function Search {
         server_name=$(ls ${conf_directory} |grep -i "^${server_name}.conf$" |sed 's/.conf//g')
         if [ ${directory} ];then
             start_line=$(grep -in "upstream \<${server_name}.${directory}\> {" ${conf_directory}/${server_name}.conf |awk -F: '{print $1}')
-            if [ ${start_line} == '' ];then
+            if [ -n ${start_line} ];then
                 echo "location ${directory} is not exist"
                 exit 1
             fi
